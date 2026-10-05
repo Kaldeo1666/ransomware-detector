@@ -1,0 +1,22 @@
+watch:
+  directory: sandbox
+  recursive: true
+  ignore_patterns:
+    - "*.tmp"
+    - "~$*"
+    - "*.swp"
+
+pipeline:
+  queue_size: 10000
+
+sinks:
+  console:
+    enabled: true
+  jsonl:
+    enabled: true
+    path: logs/events.jsonl
+  sqlite:
+    enabled: true
+    path: logs/events.db
+  siem:
+    enabled: false

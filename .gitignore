@@ -7,3 +7,5 @@ __pycache__/
 *.jsonl
 sandbox/*
 !sandbox/.RWDETECT_SANDBOX
+*.egg-info/
+logs/
