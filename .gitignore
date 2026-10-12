@@ -9,3 +9,4 @@ sandbox/*
 !sandbox/.RWDETECT_SANDBOX
 *.egg-info/
 logs/
+simulator/.state/
