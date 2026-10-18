@@ -1,4 +1,5 @@
 import socket
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -20,12 +21,15 @@ class FileEvent:
     dest_path: str | None = None      # only set for "moved"
     is_directory: bool = False
     size: int | None = None
-    entropy: float | None = None      # filled in on Day 4
+    entropy: float | None = None          # filled in by the Enricher
+    entropy_delta: float | None = None    # entropy now minus baseline entropy
     timestamp: str = field(default_factory=utc_now_iso)
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    epoch: float = field(default_factory=time.time, repr=False)  # numeric time for windows
 
     def to_dict(self) -> dict:
         record = asdict(self)
+        record.pop("epoch", None)
         record.update(
             schema_version=SCHEMA_VERSION,
             source=SOURCE,

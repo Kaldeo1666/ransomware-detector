@@ -20,3 +20,39 @@ sinks:
     path: logs/events.db
   siem:
     enabled: false
+detection:
+  window_seconds: 10
+  min_file_size: 512
+  rate:
+    files_for_max: 30
+  rename:
+    renames_for_max: 15
+  extension:
+    files_for_max: 10
+  entropy:
+    high: 7.5
+    jump_delta: 2.0
+    files_for_max: 10
+  ransom_note:
+    notes_for_max: 3
+    patterns:
+      - "*readme*restore*"
+      - "*decrypt*"
+      - "how_to_*"
+      - "*recover*files*"
+  weights:
+    mod_rate: 0.25
+    rename_burst: 0.20
+    ext_change: 0.20
+    entropy_jump: 0.30
+    ransom_note: 0.05
+  combo_bonus: 10
+  combo_min_signals: 3
+  active_threshold: 0.3
+  levels:
+    medium: 30
+    high: 60
+    critical: 80
+
+alerting:
+  cooldown_seconds: 30
