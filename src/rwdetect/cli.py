@@ -5,17 +5,19 @@ import time
 
 from rwdetect.config import load_config
 from rwdetect.monitor import Monitor
-from rwdetect.pipeline import Worker, build_sinks
+from rwdetect.pipeline import Worker, build_engine, build_sinks
 
 
 def cmd_start(args) -> None:
     config = load_config(args.config)
     q = queue.Queue(maxsize=config.queue_size)
-    worker = Worker(q, build_sinks(config))
+    engine = build_engine(config)
+    worker = Worker(q, build_sinks(config), engine)
     monitor = Monitor(config, q)
 
     worker.start()
     monitor.start()
+    print(f"Baseline: {len(engine.baseline)} files")
     print(f"Watching {config.watch_dir}  (Ctrl+C to stop)")
     try:
         while True:
