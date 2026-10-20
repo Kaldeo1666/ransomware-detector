@@ -9,15 +9,19 @@ from rwdetect.models import FileEvent
 
 
 class QueueHandler(FileSystemEventHandler):
-    def __init__(self, out_queue: queue.Queue, ignore_patterns: list[str]):
+    def __init__(self, out_queue: queue.Queue, ignore_patterns: list[str],
+                 ignore_dirs: list[str] | None = None):
         super().__init__()
         self.queue = out_queue
         self.ignore_patterns = ignore_patterns
+        self.ignore_dirs = {d.lower() for d in (ignore_dirs or [])}
         self.dropped = 0
 
     def _is_ignored(self, path: str) -> bool:
-        name = Path(path).name
-        return any(fnmatch.fnmatch(name, pat) for pat in self.ignore_patterns)
+        p = Path(path)
+        if any(fnmatch.fnmatch(p.name, pat) for pat in self.ignore_patterns):
+            return True
+        return any(part.lower() in self.ignore_dirs for part in p.parts[:-1])
 
     def _push(self, action: str, event) -> None:
         if event.is_directory:
@@ -35,9 +39,11 @@ class QueueHandler(FileSystemEventHandler):
     def on_modified(self, event): self._push("modified", event)
     def on_deleted(self, event): self._push("deleted", event)
     def on_moved(self, event): self._push("moved", event)
+
+
 class Monitor:
     def __init__(self, config, out_queue: queue.Queue):
-        self.handler = QueueHandler(out_queue, config.ignore_patterns)
+        self.handler = QueueHandler(out_queue, config.ignore_patterns, config.ignore_dirs)
         self.observer = Observer()
         self.observer.schedule(
             self.handler, str(config.watch_dir), recursive=config.recursive

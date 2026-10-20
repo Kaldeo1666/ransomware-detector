@@ -19,7 +19,12 @@ def classify(event, settings: dict) -> str | None:
     if event.entropy < cfg["high"]:
         return None
     if event.entropy_delta is not None:
-        return "jump" if event.entropy_delta >= cfg["jump_delta"] else None
+        if event.entropy_delta >= cfg["jump_delta"]:
+            return "jump"
+        if event.action != "moved":
+            return None
+        # A small jump can still be suspicious when a high-entropy file is renamed to a
+        # never-seen extension (an already-compressed file that was just encrypted).
     if event.action in ("created", "moved"):
         target = event.dest_path or event.path
         if os.path.splitext(target)[1].lower() not in HIGH_ENTROPY_EXTENSIONS:

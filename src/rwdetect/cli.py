@@ -7,6 +7,8 @@ from rwdetect.config import load_config
 from rwdetect.monitor import Monitor
 from rwdetect.pipeline import Worker, build_engine, build_sinks
 
+log = logging.getLogger("rwdetect")
+
 
 def cmd_start(args) -> None:
     config = load_config(args.config)
@@ -19,9 +21,16 @@ def cmd_start(args) -> None:
     monitor.start()
     print(f"Baseline: {len(engine.baseline)} files")
     print(f"Watching {config.watch_dir}  (Ctrl+C to stop)")
+    reported = 0
     try:
         while True:
             time.sleep(1)
+            dropped = monitor.handler.dropped
+            if dropped > reported:
+                msg = f"queue full: {dropped - reported} events dropped (total {dropped})"
+                print(f"WARNING: {msg}", flush=True)
+                log.warning(msg)
+                reported = dropped
     except KeyboardInterrupt:
         pass
     finally:

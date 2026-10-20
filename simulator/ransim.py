@@ -123,31 +123,51 @@ def cmd_clean(args) -> None:
     print(f"Removed {removed} files")
 
 
+def put_back(path: Path, locked: Path, original: bytes) -> None:
+    """Undo a half-finished attack on one file so the dummy data never ends up corrupted."""
+    try:
+        locked.unlink(missing_ok=True)
+        path.write_bytes(original)
+    except OSError as err:
+        print(f"  COULD NOT PUT BACK ({err.__class__.__name__}): run clean + generate")
+
+
 def cmd_attack(args) -> None:
     root = check_sandbox(args.dir)
     manifest = load_manifest(root)
     aes = AESGCM(load_key())
-    done = 0
+    done = skipped = 0
     for rel, path in targets(root, manifest):
         if args.files and done >= args.files:
             break
         if not is_safe_file(root, path):
             continue
+        if sha256_of(path) != manifest["files"][rel]:
+            print(f"SKIPPED (differs from the original; run clean + generate): {rel}")
+            skipped += 1
+            continue
         locked = path.with_name(path.name + LOCKED_EXT)
         print(f"{'WOULD ENCRYPT' if args.dry_run else 'ENCRYPT'} {rel}")
         if not args.dry_run:
+            original = path.read_bytes()
             nonce = os.urandom(NONCE_LEN)
-            blob = nonce + aes.encrypt(nonce, path.read_bytes(), None)
-            if args.style == "inplace":
-                path.write_bytes(blob)
-                path.replace(locked)
-            else:
-                locked.write_bytes(blob)
-                path.unlink()
+            blob = nonce + aes.encrypt(nonce, original, None)
+            try:
+                if args.style == "inplace":
+                    path.write_bytes(blob)
+                    path.replace(locked)
+                else:
+                    locked.write_bytes(blob)
+                    path.unlink()
+            except OSError as err:
+                print(f"FAILED ({err.__class__.__name__}, file busy?): {rel}; putting it back")
+                put_back(path, locked, original)
+                skipped += 1
+                continue
         done += 1
         time.sleep(args.delay)
     verb = "Would encrypt" if args.dry_run else "Encrypted"
-    print(f"{verb} {done} files")
+    print(f"{verb} {done} files" + (f", skipped {skipped}" if skipped else ""))
 
 
 def cmd_restore(args) -> None:
@@ -157,10 +177,12 @@ def cmd_restore(args) -> None:
         sys.exit("No key found; nothing to restore.")
     aes = AESGCM(KEY_PATH.read_bytes())
     restored = problems = 0
+    handled = set()
     for rel, path in targets(root, manifest):
         locked = path.with_name(path.name + LOCKED_EXT)
         if not is_safe_file(root, locked):
             continue
+        handled.add(rel)
         blob = locked.read_bytes()
         try:
             plain = aes.decrypt(blob[:NONCE_LEN], blob[NONCE_LEN:], None)
@@ -174,9 +196,17 @@ def cmd_restore(args) -> None:
         problems += 0 if ok else 1
         restored += 1
         print(f"{'OK      ' if ok else 'MISMATCH'} {rel}")
+    for rel, path in targets(root, manifest):          # files that were never encrypted
+        if rel in handled:
+            continue
+        if not path.exists():
+            print(f"MISSING  {rel}")
+            problems += 1
+        elif is_safe_file(root, path) and sha256_of(path) != manifest["files"][rel]:
+            print(f"MISMATCH {rel}  (not encrypted, but differs from the original)")
+            problems += 1
     print(f"Restored {restored} files, {problems} problems")
-
-
+    
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)

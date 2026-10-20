@@ -30,6 +30,7 @@ class Engine:
         self.scorer = RiskScorer(self.settings)
         self.alerts = AlertManager(config.alerting["cooldown_seconds"])
         self.last_result = None
+        self.peak_score = 0
 
     def handle(self, event: FileEvent) -> list[dict]:
         """Process one event. Returns the records to send to the sinks."""
@@ -46,6 +47,7 @@ class Engine:
         signals = {d.name: d.signal(now) for d in self.detectors}
         result = self.scorer.score(signals)
         self.last_result = result
+        self.peak_score = max(self.peak_score, result.score)
         status = self.alerts.update(result.level, now)
         if status is None:
             return []

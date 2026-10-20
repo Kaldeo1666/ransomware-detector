@@ -24,9 +24,15 @@ def test_classify_new_zip_is_not_suspicious_by_itself():
     assert classify(ev("created", "photos.zip", 1, entropy=7.9), S) is None
 
 
-def test_classify_already_high_file_encrypted_has_small_jump():
-    # the honest limitation: zip 7.7 -> encrypted 7.95 is only +0.25
-    assert classify(ev("moved", "a.zip", 1, dest="a.zip.locked", entropy=7.95, delta=0.25), S) is None
+def test_classify_small_jump_in_place_keeps_the_known_blind_spot():
+    # a zip that stays a zip: 7.7 -> 7.95 is only +0.25 and the name does not change
+    assert classify(ev("modified", "a.zip", 1, entropy=7.95, delta=0.25), S) is None
+    assert classify(ev("moved", "a.zip", 1, dest="b.zip", entropy=7.95, delta=0.25), S) is None
+
+
+def test_classify_compressed_file_renamed_to_unknown_extension():
+    # the same zip renamed to .locked: small delta, but a high-entropy file with a new name type
+    assert classify(ev("moved", "a.zip", 1, dest="a.zip.locked", entropy=7.95, delta=0.25), S) == "new_high"
 
 
 def test_classify_ignores_tiny_files():

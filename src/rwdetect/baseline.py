@@ -50,9 +50,11 @@ class BaselineIndex:
     def known_extensions(self) -> set[str]:
         return {r.ext for r in self._items.values() if r.ext}
 
-    def scan(self, root, ignore_patterns=()) -> int:
+    def scan(self, root, ignore_patterns=(), ignore_dirs=()) -> int:
+        skip = {d.lower() for d in ignore_dirs}
         count = 0
-        for dirpath, _dirs, files in os.walk(root):
+        for dirpath, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d.lower() not in skip]
             for name in files:
                 if any(fnmatch.fnmatch(name, pat) for pat in ignore_patterns):
                     continue

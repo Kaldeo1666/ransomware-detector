@@ -27,6 +27,15 @@ class Worker(threading.Thread):
                 except Exception:
                     log.exception("sink %s failed", type(sink).__name__)
 
+    def _flush_sinks(self) -> None:
+        for sink in self.sinks:
+            flush = getattr(sink, "flush", None)
+            if flush is not None:
+                try:
+                    flush()
+                except Exception:
+                    log.exception("flush of %s failed", type(sink).__name__)
+
     def run(self) -> None:
         while not self._stop_event.is_set() or not self.queue.empty():
             try:
@@ -37,6 +46,7 @@ class Worker(threading.Thread):
                         self._emit(self.engine.tick())
                     except Exception:
                         log.exception("engine tick failed")
+                self._flush_sinks()
                 continue
             if self.engine is None:
                 records = [event.to_dict()]
@@ -72,6 +82,6 @@ def build_sinks(config) -> list:
 
 def build_engine(config) -> Engine:
     baseline = BaselineIndex()
-    count = baseline.scan(config.watch_dir, config.ignore_patterns)
+    count = baseline.scan(config.watch_dir, config.ignore_patterns, config.ignore_dirs)
     log.info("baseline built: %d files", count)
     return Engine(config, baseline)

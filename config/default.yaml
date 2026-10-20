@@ -5,6 +5,12 @@ watch:
     - "*.tmp"
     - "~$*"
     - "*.swp"
+  ignore_dirs:
+    - ".git"
+    - "node_modules"
+    - "__pycache__"
+    - ".venv"
+    - ".pytest_cache"
 
 pipeline:
   queue_size: 10000
@@ -47,6 +53,9 @@ detection:
     entropy_jump: 0.30
     ransom_note: 0.05
   combo_bonus: 10
+  gate_signals:
+    - entropy_jump
+    - ransom_note
   combo_min_signals: 3
   active_threshold: 0.3
   levels:

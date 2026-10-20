@@ -24,6 +24,7 @@ DEFAULT_DETECTION = {
         "entropy_jump": 0.30,
         "ransom_note": 0.05,
     },
+    "gate_signals": [],
     "combo_bonus": 10,
     "combo_min_signals": 3,
     "active_threshold": 0.3,
@@ -57,6 +58,9 @@ def validate_detection(d: dict) -> None:
         raise ValueError("detection.levels must satisfy 0 < medium < high < critical <= 100")
     if d["window_seconds"] <= 0:
         raise ValueError("detection.window_seconds must be positive")
+    unknown = set(d["gate_signals"]) - SIGNAL_NAMES
+    if unknown:
+        raise ValueError(f"detection.gate_signals has unknown names: {sorted(unknown)}")
 
 
 @dataclass
@@ -66,6 +70,7 @@ class Config:
     ignore_patterns: list[str]
     queue_size: int
     sinks: dict
+    ignore_dirs: list[str] = field(default_factory=list)
     detection: dict = field(default_factory=lambda: copy.deepcopy(DEFAULT_DETECTION))
     alerting: dict = field(default_factory=lambda: copy.deepcopy(DEFAULT_ALERTING))
 
@@ -90,6 +95,7 @@ def load_config(path: str | Path = "config/default.yaml") -> Config:
         watch_dir=watch_dir,
         recursive=bool(watch.get("recursive", True)),
         ignore_patterns=list(watch.get("ignore_patterns", [])),
+        ignore_dirs=list(watch.get("ignore_dirs", [])),
         queue_size=queue_size,
         sinks=raw.get("sinks", {}),
         detection=detection,
